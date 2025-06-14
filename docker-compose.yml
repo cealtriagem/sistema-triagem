@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14
+    restart: always
+    environment:
+      POSTGRES_USER: triagem_user
+      POSTGRES_PASSWORD: Ce@l2025
+      POSTGRES_DB: triagem_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    ports:
+      - '3000:3000'
+    environment:
+      # DB_HOST: ep-weathered-fire-acx362jb-pooler.sa-east-1.aws.neon.tech
+      DB_HOST: postgres
+      DB_PORT: 5432
+      # DB_USER: triagem_db_owner
+      DB_USER: triagem_user
+      # DB_PASSWORD: npg_q9Sz4agZmiI
+      DB_PASSWORD: Ce@l2025
+      DB_DATABASE: triagem_db
+      JWT_SECRET: secreta123
+      PORT: 3000
+    depends_on:
+      - postgres
+
+  frontend:
+    build: .
+    ports:
+      - '3000:3000'
+volumes:
+  pgdata:

@@ -1,0 +1,141 @@
+<<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Triagem</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="max-w-3xl mx-auto p-6">
+    <div class="bg-white shadow-md rounded-xl p-6 mb-6">
+      <h1 class="text-2xl font-bold mb-4">Login</h1>
+      <form id="login-form" class="space-y-4">
+        <input type="email" id="email" placeholder="Email" class="w-full p-2 border rounded" required />
+        <input type="password" id="senha" placeholder="Senha" class="w-full p-2 border rounded" required />
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Entrar</button>
+      </form>
+    </div>
+
+    <div class="bg-white shadow-md rounded-xl p-6 hidden" id="triagem-container">
+      <h2 class="text-xl font-semibold mb-4">Cadastro de Triagem</h2>
+      <form id="triagem-form" class="grid grid-cols-1 gap-4">
+        <input type="text" id="nome_assitido" placeholder="Nome do assistido" class="p-2 border rounded" required />
+
+        <label class="inline-flex items-center">
+          <input type="checkbox" id="status_cobertor" class="mr-2" /> Cobertor
+        </label>
+
+        <label class="inline-flex items-center">
+          <input type="checkbox" id="status_camisa" class="mr-2" /> Camisa
+        </label>
+
+        <select id="tam_camisa" class="p-2 border rounded">
+          <option value="">Tamanho da camisa</option>
+          <option value="P">P</option>
+          <option value="M">M</option>
+          <option value="G">G</option>
+        </select>
+
+        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Salvar Triagem</button>
+      </form>
+
+      <div class="mt-8">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="text-xl font-semibold">Triagens Cadastradas</h2>
+          <button id="export-btn" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">Exportar Excel</button>
+        </div>
+        <ul id="lista-triagens" class="space-y-2"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById('login-form');
+    const triagemForm = document.getElementById('triagem-form');
+    const triagemContainer = document.getElementById('triagem-container');
+    const listaTriagens = document.getElementById('lista-triagens');
+    const exportBtn = document.getElementById('export-btn');
+    let token = localStorage.getItem('token');
+    let triagens = [];
+
+    if (token) mostrarTriagem();
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const senha = document.getElementById('senha').value;
+
+      const res = await fetch('http://localhost:3000/api/usuarios/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        token = data.token;
+        localStorage.setItem('token', token);
+        mostrarTriagem();
+      } else {
+        alert('Login falhou.');
+      }
+    });
+
+    function mostrarTriagem() {
+      document.getElementById('login-form').parentElement.classList.add('hidden');
+      triagemContainer.classList.remove('hidden');
+      carregarTriagens();
+    }
+
+    triagemForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const dados = {
+        nome_assitido: document.getElementById('nome_assitido').value,
+        status_cobertor: document.getElementById('status_cobertor').checked,
+        status_camisa: document.getElementById('status_camisa').checked,
+        tam_camisa: document.getElementById('tam_camisa').value
+      };
+
+      const res = await fetch('http://localhost:3000/api/triagens', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(dados)
+      });
+
+      if (res.ok) {
+        alert('Triagem cadastrada!');
+        triagemForm.reset();
+        carregarTriagens();
+      } else {
+        alert('Erro ao salvar.');
+      }
+    });
+
+    async function carregarTriagens() {
+      const res = await fetch('http://localhost:3000/api/triagens', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      triagens = await res.json();
+      listaTriagens.innerHTML = '';
+      triagens.forEach(t => {
+        const li = document.createElement('li');
+        li.className = 'p-4 bg-gray-100 rounded shadow';
+        li.textContent = `${t.nome_assitido} - Camisa: ${t.status_camisa ? 'Sim' : 'Não'} (${t.tam_camisa || '-'}) - Cobertor: ${t.status_cobertor ? 'Sim' : 'Não'}`;
+        listaTriagens.appendChild(li);
+      });
+    }
+
+    exportBtn.addEventListener('click', () => {
+      const planilha = XLSX.utils.json_to_sheet(triagens);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, planilha, 'Triagens');
+      XLSX.writeFile(wb, 'triagens.xlsx');
+    });
+  </script>
+</body>
+</html>
